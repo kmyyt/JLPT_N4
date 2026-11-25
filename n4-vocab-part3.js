@@ -1,5 +1,5 @@
 // JLPT N4 어휘 DB - 3차 (161 ~ 240번 / DAY 07 ~ DAY 10)
-const VOCAB_DB_PART3 = [
+window. VOCAB_DB_PART3 = [
   // DAY 07 (161 ~ 175)
   { id: "v161", word: "元気", kana: "げんき", meaning: "건강함, 기운", pos: "명사·나형용사", category: "DAY 07", examTags: ["2026 기출", "2019 유의표현"] },
   { id: "v162", word: "研究", kana: "けんきゅう", meaning: "연구", pos: "명사·동사", category: "DAY 07", examTags: ["2026 기출", "2019 한자읽기", "2016-2020 한자읽기"] },
