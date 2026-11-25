@@ -1,3 +1,18 @@
+const VOCAB_DB = [
+  ...VOCAB_DB_PART1,
+  ...VOCAB_DB_PART2,
+  ...VOCAB_DB_PART3,
+  ...VOCAB_DB_PART4,
+  ...VOCAB_DB_PART5,
+  ...VOCAB_DB_PART6,
+  ...VOCAB_DB_EXTRA_EXAM
+];
+
+window.JLPTData = {
+  ...(window.JLPTData || {}),
+  VOCAB_DB
+};
+
 (() => {
   "use strict";
 
@@ -8,19 +23,6 @@
   }
 
   const VOCAB_PAGE_SIZE = 50;
-
-  const GOOGLE_TTS_CONFIG = {
-    apiKey: "YOUR_GOOGLE_CLOUD_TTS_API_KEY",
-    languageCode: "ja-JP",
-    voiceName: "ja-JP-Neural2-B",
-    audioEncoding: "MP3",
-    enableCache: true,
-    maxCacheSize: 200
-  };
-
-  let currentGoogleAudio = null;
-  let googlePlayToken = 0;
-  const googleAudioCache = new Map();
 
   let appState = DATA.loadState();
 
@@ -73,113 +75,36 @@
     }
   }
 
-  function stopGoogleOrBrowserTts() {
-    if (currentGoogleAudio) {
-      try {
-        currentGoogleAudio.pause();
-        currentGoogleAudio.currentTime = 0;
-      } catch (_) {}
-      currentGoogleAudio = null;
-    }
-    if (typeof window.speechSynthesis !== "undefined") {
-      try {
-        window.speechSynthesis.cancel();
-      } catch (_) {}
-    }
-  }
-
-  function fallbackBrowserSpeak(text, rate = 1.0) {
+  function stopInternalTts() {
     if (typeof window.speechSynthesis === "undefined") return;
     try {
       window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = "ja-JP";
-      utter.rate = Number.isFinite(Number(rate)) ? Number(rate) : 1.0;
-      const voices = window.speechSynthesis.getVoices();
-      const jaVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("ja"));
-      if (jaVoice) utter.voice = jaVoice;
-      window.speechSynthesis.speak(utter);
     } catch (_) {}
   }
 
-  function cacheGoogleAudioUrl(key, blobUrl) {
-    if (!GOOGLE_TTS_CONFIG.enableCache) return;
-    if (googleAudioCache.has(key)) {
-      const oldUrl = googleAudioCache.get(key);
-      googleAudioCache.delete(key);
-      googleAudioCache.set(key, oldUrl);
-      return;
-    }
-    if (googleAudioCache.size >= GOOGLE_TTS_CONFIG.maxCacheSize) {
-      const oldestKey = googleAudioCache.keys().next().value;
-      const oldestUrl = googleAudioCache.get(oldestKey);
-      googleAudioCache.delete(oldestKey);
-      if (oldestUrl) setTimeout(() => URL.revokeObjectURL(oldestUrl), 1000);
-    }
-    googleAudioCache.set(key, blobUrl);
-  }
-
-  async function fetchGoogleJapaneseTtsBlob(text, speakingRate = 1.0) {
-    const apiKey = String(GOOGLE_TTS_CONFIG.apiKey || "").trim();
-    if (!apiKey || apiKey === "YOUR_GOOGLE_CLOUD_TTS_API_KEY") {
-      throw new Error("Google Cloud TTS API 키 미설정");
-    }
-    const clampedRate = Math.max(0.25, Math.min(4.0, Number(speakingRate) || 1.0));
-    const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(apiKey)}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        input: { text },
-        voice: {
-          languageCode: GOOGLE_TTS_CONFIG.languageCode,
-          name: GOOGLE_TTS_CONFIG.voiceName
-        },
-        audioConfig: {
-          audioEncoding: GOOGLE_TTS_CONFIG.audioEncoding,
-          speakingRate: clampedRate
-        }
-      })
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const binaryStr = atob(data.audioContent);
-    const bytes = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i += 1) bytes[i] = binaryStr.charCodeAt(i);
-    return new Blob([bytes], { type: "audio/mpeg" });
-  }
-
-  function playGoogleBlobUrl(blobUrl, token) {
-    if (token !== googlePlayToken) return;
-    const audio = new Audio(blobUrl);
-    currentGoogleAudio = audio;
-    audio.play().catch(() => {});
-  }
-
-  async function speakJapanese(text, rate = appState.ttsRate) {
+  function speakJapanese(text, rate = appState.ttsRate) {
     const cleanText = String(text || "").replace(/〜/g, "").trim();
     if (!cleanText) return;
-    const token = ++googlePlayToken;
-    stopGoogleOrBrowserTts();
-
-    const numericRate = Number.isFinite(Number(rate)) ? Number(rate) : 1.0;
-    const cacheKey = `${GOOGLE_TTS_CONFIG.voiceName}::${numericRate}::${cleanText}`;
-
-    if (GOOGLE_TTS_CONFIG.enableCache && googleAudioCache.has(cacheKey)) {
-      const cachedUrl = googleAudioCache.get(cacheKey);
-      cacheGoogleAudioUrl(cacheKey, cachedUrl);
-      playGoogleBlobUrl(cachedUrl, token);
+    if (typeof window.speechSynthesis === "undefined") {
+      console.warn("이 브라우저는 내부 TTS(speechSynthesis)를 지원하지 않습니다.");
       return;
     }
-
     try {
-      const blob = await fetchGoogleJapaneseTtsBlob(cleanText, numericRate);
-      if (token !== googlePlayToken) return;
-      const blobUrl = URL.createObjectURL(blob);
-      cacheGoogleAudioUrl(cacheKey, blobUrl);
-      playGoogleBlobUrl(blobUrl, token);
-    } catch (_) {
-      if (token === googlePlayToken) fallbackBrowserSpeak(cleanText, numericRate);
+      stopInternalTts();
+      const utter = new SpeechSynthesisUtterance(cleanText);
+      utter.lang = "ja-JP";
+      const numericRate = Number(rate);
+      utter.rate = Number.isFinite(numericRate) ? Math.max(0.5, Math.min(2.0, numericRate)) : 1.0;
+
+      const voices = window.speechSynthesis.getVoices();
+      const jaVoice =
+        voices.find((v) => v.lang && v.lang.toLowerCase() === "ja-jp") ||
+        voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("ja"));
+      if (jaVoice) utter.voice = jaVoice;
+
+      window.speechSynthesis.speak(utter);
+    } catch (err) {
+      console.error("내부 TTS 재생 오류:", err);
     }
   }
 
@@ -1617,6 +1542,7 @@
       switchGrammarSubTab,
       switchReadingCategory,
       speakJapanese,
+      stopInternalTts,
       refreshAllViews,
       getState: () => appState
     };
