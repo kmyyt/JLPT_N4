@@ -1,5 +1,5 @@
 // JLPT N4 어휘 DB - 5차 (321 ~ 400번 / DAY 13 ~ DAY 17)
-window. VOCAB_DB_PART5 = [
+window.VOCAB_DB_PART5 = [
   // DAY 13 (321 ~ 325)
   { id: "v321", word: "入院", kana: "にゅういん", meaning: "입원", pos: "명사·동사", category: "DAY 13", examTags: ["2024 한자읽기"] },
   { id: "v322", word: "似る", kana: "にる", meaning: "닮다", pos: "동사", category: "DAY 13", examTags: [] },
