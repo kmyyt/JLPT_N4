@@ -757,15 +757,22 @@
 
   <!-- 스크립트 로드 순서: [N4 개별 DB 파일들] -> data.js -> study.js -> quiz.js -->
   <!-- 앞으로 제공해주실 DB 파일들을 여기에 추가합니다 -->
-  <script src="./n4-vocab-kanji-reading.js" defer></script>
-  <script src="./n4-vocab-notation.js" defer></script>
-  <script src="./n4-vocab-context.js" defer></script>
-  <script src="./n4-vocab-synonym.js" defer></script>
-  <script src="./n4-vocab-usage.js" defer></script>
-  <script src="./n4-grammar.js" defer></script>
-  <script src="./n4-reading.js" defer></script>
-  <script src="./data.js" defer></script>
-  <script src="./study.js" defer></script>
-  <script src="./quiz.js" defer></script>
+<!-- 1. N4 어휘 파트별 DB (study.js보다 먼저 로드) -->
+<script src="./n4-vocab-part1.js"></script>
+<script src="./n4-vocab-part2.js"></script>
+<script src="./n4-vocab-part3.js"></script>
+<script src="./n4-vocab-part4.js"></script>
+<script src="./n4-vocab-part5.js"></script>
+<script src="./n4-vocab-part6.js"></script>
+<script src="./n4-vocab-extra-exam.js"></script>
+
+<!-- 2. 공통 데이터/진도/문법/독해 모듈 -->
+<script src="./data.js"></script>
+
+<!-- 3. 학습 화면 및 내부 TTS 제어 -->
+<script src="./study.js"></script>
+
+<!-- 4. 퀴즈 모듈 (사용 시) -->
+<script src="./quiz.js"></script>
 </body>
 </html>
