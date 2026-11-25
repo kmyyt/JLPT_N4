@@ -1,5 +1,5 @@
 // JLPT N4 어휘 DB - 1차 (1 ~ 80번 / DAY 01 ~ DAY 04)
-const VOCAB_DB_PART1 = [
+window. VOCAB_DB_PART1 = [
   // DAY 01 (1 ~ 25)
   { id: "v001", word: "青い", kana: "あおい", meaning: "파랗다", pos: "い형용사", category: "DAY 01", examTags: ["2016-2020 표기"] },
   { id: "v002", word: "赤い", kana: "あかい", meaning: "빨갛다, 붉다", pos: "い형용사", category: "DAY 01", examTags: ["2025 한자읽기", "2019 표기"] },
