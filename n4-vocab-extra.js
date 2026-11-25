@@ -1,5 +1,5 @@
 // JLPT N4 추가 기출 어휘·표현 DB (n4_word.pdf 기출 목록 보완)
-window. VOCAB_DB_EXTRA_EXAM = [
+window.VOCAB_DB_EXTRA_EXAM = [
   { id: "v449", word: "雪", kana: "ゆき", meaning: "눈", pos: "명사", category: "기출어휘", examTags: ["2026 한자읽기"] },
   { id: "v450", word: "交通", kana: "こうつう", meaning: "교통", pos: "명사", category: "기출어휘", examTags: ["2026 표기", "2019 표기", "2016-2020 표기"] },
   { id: "v451", word: "卒業", kana: "そつぎょう", meaning: "졸업", pos: "명사·동사", category: "기출어휘", examTags: ["2026 문맥", "2023 기출문장"] },
