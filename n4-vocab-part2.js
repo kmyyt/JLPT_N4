@@ -1,5 +1,5 @@
 // JLPT N4 어휘 DB - 2차 (81 ~ 160번 / DAY 04 ~ DAY 07)
-const VOCAB_DB_PART2 = [
+window. VOCAB_DB_PART2 = [
   // DAY 04 (81 ~ 100)
   { id: "v081", word: "覚える", kana: "おぼえる", meaning: "외우다, 기억하다", pos: "동사", category: "DAY 04", examTags: ["2022 문맥"] },
   { id: "v082", word: "お見舞い", kana: "おみまい", meaning: "병문안", pos: "명사·동사", category: "DAY 04", examTags: [] },
