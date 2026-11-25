@@ -1,5 +1,5 @@
 // JLPT N4 어휘 DB - 6차 (401 ~ 448번 / DAY 17 ~ DAY 18 완결)
-window. VOCAB_DB_PART6 = [
+window.VOCAB_DB_PART6 = [
   // DAY 17 (401 ~ 412)
   { id: "v401", word: "むしあつい", kana: "むしあつい", meaning: "무덥다", pos: "い형용사", category: "DAY 17", examTags: ["2021 용법"] },
   { id: "v402", word: "村", kana: "むら", meaning: "마을", pos: "명사", category: "DAY 17", examTags: ["2022 기출문장"] },
