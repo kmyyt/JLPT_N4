@@ -1,5 +1,5 @@
 // JLPT N4 어휘 DB - 4차 (241 ~ 320번 / DAY 10 ~ DAY 13)
-const VOCAB_DB_PART4 = [
+window. VOCAB_DB_PART4 = [
   // DAY 10 (241 ~ 250)
   { id: "v241", word: "狭い", kana: "せまい", meaning: "좁다", pos: "い형용사", category: "DAY 10", examTags: [] },
   { id: "v242", word: "世話", kana: "せわ", meaning: "도와줌, 보살핌", pos: "명사·동사", category: "DAY 10", examTags: ["2023 문맥"] },
