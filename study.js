@@ -1,18 +1,3 @@
-const VOCAB_DB = [
-  ...(typeof VOCAB_DB_PART1 !== "undefined" && Array.isArray(VOCAB_DB_PART1) ? VOCAB_DB_PART1 : []),
-  ...(typeof VOCAB_DB_PART2 !== "undefined" && Array.isArray(VOCAB_DB_PART2) ? VOCAB_DB_PART2 : []),
-  ...(typeof VOCAB_DB_PART3 !== "undefined" && Array.isArray(VOCAB_DB_PART3) ? VOCAB_DB_PART3 : []),
-  ...(typeof VOCAB_DB_PART4 !== "undefined" && Array.isArray(VOCAB_DB_PART4) ? VOCAB_DB_PART4 : []),
-  ...(typeof VOCAB_DB_PART5 !== "undefined" && Array.isArray(VOCAB_DB_PART5) ? VOCAB_DB_PART5 : []),
-  ...(typeof VOCAB_DB_PART6 !== "undefined" && Array.isArray(VOCAB_DB_PART6) ? VOCAB_DB_PART6 : []),
-  ...(typeof VOCAB_DB_EXTRA_EXAM !== "undefined" && Array.isArray(VOCAB_DB_EXTRA_EXAM) ? VOCAB_DB_EXTRA_EXAM : [])
-];
-
-window.JLPTData = {
-  ...(window.JLPTData || {}),
-  VOCAB_DB
-};
-
 (() => {
   "use strict";
 
@@ -119,16 +104,17 @@ window.JLPTData = {
   }
 
   function getItemStatus(itemId) {
-    const rec = appState.progress[String(itemId)];
+    const rec = appState.progress?.[String(itemId)];
     return rec ? DATA.normalizeStatus(rec.status) : "미학습";
   }
 
   function updateDdayBadge() {
     const badge = document.getElementById("dday-badge");
     if (!badge) return;
+    const examDateStr = badge.getAttribute("data-exam-date") || DATA.EXAM_DATE;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const exam = new Date(`${DATA.EXAM_DATE}T00:00:00`);
+    const exam = new Date(`${examDateStr}T00:00:00`);
     const diffDays = Math.ceil((exam.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDays > 0) badge.textContent = `D-${diffDays}`;
     else if (diffDays === 0) badge.textContent = "D-Day";
@@ -239,6 +225,11 @@ window.JLPTData = {
         populateVocabFilterOptions();
         vocabInitialized = true;
       }
+      syncDeckSelectOptions();
+      if (options.statusFilter) {
+        const statusSel = document.getElementById("vocab-status-filter");
+        if (statusSel) statusSel.value = options.statusFilter;
+      }
       if (options.resetPage !== false) vocabRenderedCount = VOCAB_PAGE_SIZE;
       renderVocabList();
     } else if (subTabName === "vocab-flashcard") {
@@ -272,8 +263,13 @@ window.JLPTData = {
     });
 
     if (subTabName === "grammar-dashboard") renderGrammarDashboard();
-    else if (subTabName === "grammar-list") renderGrammarList();
-    else if (subTabName === "grammar-flashcard") {
+    else if (subTabName === "grammar-list") {
+      if (options.statusFilter) {
+        const gStatusSel = document.getElementById("grammar-status-filter");
+        if (gStatusSel) gStatusSel.value = options.statusFilter;
+      }
+      renderGrammarList();
+    } else if (subTabName === "grammar-flashcard") {
       if (options.scope) {
         gfcScope = options.scope;
         const sel = document.getElementById("gfc-scope-select");
@@ -336,7 +332,7 @@ window.JLPTData = {
   function renderCustomDecksList() {
     const ul = document.getElementById("custom-deck-list");
     if (!ul) return;
-    if (!appState.customDecks.length) {
+    if (!Array.isArray(appState.customDecks) || !appState.customDecks.length) {
       ul.innerHTML = '<li class="helper-text">아직 생성된 커스텀 단어장이 없습니다.</li>';
       return;
     }
@@ -344,7 +340,7 @@ window.JLPTData = {
       .map(
         (deck) => `
       <li class="custom-deck-item">
-        <span><strong>${escapeHtml(deck.name)}</strong> (${deck.wordIds.length}단어)</span>
+        <span><strong>${escapeHtml(deck.name)}</strong> (${(deck.wordIds || []).length}단어)</span>
         <div class="quick-action-row">
           <button type="button" class="chip-btn" data-open-deck="${escapeHtml(deck.id)}">단어장에서 보기</button>
           <button type="button" class="chip-btn" data-delete-deck="${escapeHtml(deck.id)}">삭제</button>
@@ -356,6 +352,7 @@ window.JLPTData = {
   }
 
   function syncDeckSelectOptions() {
+    const decks = Array.isArray(appState.customDecks) ? appState.customDecks : [];
     const filterSel = document.getElementById("vocab-deck-filter");
     const batchSel = document.getElementById("batch-target-deck-select");
 
@@ -363,18 +360,16 @@ window.JLPTData = {
       const prev = filterSel.value;
       filterSel.innerHTML =
         '<option value="ALL">전체 단어장</option>' +
-        appState.customDecks
-          .map((d) => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)}</option>`)
-          .join("");
+        decks.map((d) => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)}</option>`).join("");
       if ([...filterSel.options].some((o) => o.value === prev)) filterSel.value = prev;
     }
 
     if (batchSel) {
+      const prevBatch = batchSel.value;
       batchSel.innerHTML =
         '<option value="">커스텀 단어장 선택...</option>' +
-        appState.customDecks
-          .map((d) => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)}</option>`)
-          .join("");
+        decks.map((d) => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)}</option>`).join("");
+      if ([...batchSel.options].some((o) => o.value === prevBatch)) batchSel.value = prevBatch;
     }
   }
 
@@ -399,10 +394,10 @@ window.JLPTData = {
     const deckId = document.getElementById("vocab-deck-filter")?.value || "ALL";
     const sortBy = document.getElementById("vocab-sort-select")?.value || "default";
 
-    const deckObj =
-      deckId !== "ALL" ? appState.customDecks.find((d) => String(d.id) === String(deckId)) : null;
-    const deckIdSet = deckObj ? new Set(deckObj.wordIds.map(String)) : null;
-    const favSet = new Set(appState.favorites.map(String));
+    const decks = Array.isArray(appState.customDecks) ? appState.customDecks : [];
+    const deckObj = deckId !== "ALL" ? decks.find((d) => String(d.id) === String(deckId)) : null;
+    const deckIdSet = deckObj ? new Set((deckObj.wordIds || []).map(String)) : null;
+    const favSet = new Set((appState.favorites || []).map(String));
 
     let list = DATA.VOCAB_DB.filter((item) => {
       const idStr = String(item.id);
@@ -420,7 +415,7 @@ window.JLPTData = {
       if (deckIdSet && !deckIdSet.has(idStr)) return false;
 
       if (q) {
-        const memo = (appState.posNotes[idStr] || "").toLowerCase();
+        const memo = (appState.posNotes?.[idStr] || "").toLowerCase();
         const hay = `${item.word || ""} ${item.kana || ""} ${item.meaning || ""} ${memo}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
@@ -433,7 +428,9 @@ window.JLPTData = {
     } else if (sortBy === "status") {
       list = [...list].sort((a, b) => (statusRank[getItemStatus(a.id)] ?? 2) - (statusRank[getItemStatus(b.id)] ?? 2));
     } else if (sortBy === "wrong") {
-      list = [...list].sort((a, b) => (appState.wrongStats[String(b.id)]?.count || 0) - (appState.wrongStats[String(a.id)]?.count || 0));
+      list = [...list].sort(
+        (a, b) => (appState.wrongStats?.[String(b.id)]?.count || 0) - (appState.wrongStats?.[String(a.id)]?.count || 0)
+      );
     }
 
     return list;
@@ -452,7 +449,7 @@ window.JLPTData = {
       container.innerHTML = '<div class="card helper-text">등록된 N4 단어가 없거나 조건에 맞는 단어가 없습니다.</div>';
       if (infoEl) infoEl.textContent = "0 / 0개 표시 중";
       if (moreBtn) moreBtn.hidden = true;
-      updateBatchSelectionUI();
+      updateBatchSelectionUI(visibleItems);
       return;
     }
 
@@ -460,11 +457,11 @@ window.JLPTData = {
       .map((item) => {
         const idStr = String(item.id);
         const status = getItemStatus(idStr);
-        const isFav = appState.favorites.map(String).includes(idStr);
+        const isFav = (appState.favorites || []).map(String).includes(idStr);
         const isChecked = selectedVocabIds.has(idStr);
         const dupLabel = DATA.formatDuplicateExamLabel(item.examTags);
         const kanaOnly = DATA.isHiraganaOnly(item.word);
-        const memo = appState.posNotes[idStr] || "";
+        const memo = appState.posNotes?.[idStr] || "";
 
         return `
         <article class="vocab-row-card" data-vocab-id="${escapeHtml(idStr)}">
@@ -509,16 +506,22 @@ window.JLPTData = {
         moreBtn.hidden = true;
       }
     }
-    updateBatchSelectionUI();
+    updateBatchSelectionUI(visibleItems);
   }
 
-  function updateBatchSelectionUI() {
+  function updateBatchSelectionUI(visibleItems = []) {
     const countEl = document.getElementById("vocab-selected-count");
     if (countEl) countEl.textContent = String(selectedVocabIds.size);
+
+    const selectAllCb = document.getElementById("vocab-select-all");
+    if (selectAllCb) {
+      selectAllCb.checked =
+        visibleItems.length > 0 && visibleItems.every((item) => selectedVocabIds.has(String(item.id)));
+    }
   }
 
   function getVocabByScope(scope) {
-    const favSet = new Set(appState.favorites.map(String));
+    const favSet = new Set((appState.favorites || []).map(String));
     return DATA.VOCAB_DB.filter((item) => {
       const idStr = String(item.id);
       const status = getItemStatus(idStr);
@@ -555,7 +558,7 @@ window.JLPTData = {
     const item = fcDeck[fcIndex % fcDeck.length];
     const idStr = String(item.id);
     const status = getItemStatus(idStr);
-    const isFav = appState.favorites.map(String).includes(idStr);
+    const isFav = (appState.favorites || []).map(String).includes(idStr);
     const dupLabel = DATA.formatDuplicateExamLabel(item.examTags);
     const kanaOnly = DATA.isHiraganaOnly(item.word);
 
@@ -584,7 +587,7 @@ window.JLPTData = {
     }
 
     const memoInput = document.getElementById("fc-simple-memo");
-    if (memoInput) memoInput.value = appState.posNotes[idStr] || "";
+    if (memoInput) memoInput.value = appState.posNotes?.[idStr] || "";
 
     const frontEl = document.getElementById("fc-front");
     const backEl = document.getElementById("fc-back");
@@ -630,7 +633,12 @@ window.JLPTData = {
         relatedBox.hidden = false;
         relatedBox.innerHTML = matches.length
           ? `<strong>「${escapeHtml(fcActiveKanji)}」 포함 어휘:</strong> ` +
-            matches.map((m) => `<span class="badge" lang="ja">${escapeHtml(m.word)} (${escapeHtml(m.kana)}) · ${escapeHtml(m.meaning)}</span>`).join(" ")
+            matches
+              .map(
+                (m) =>
+                  `<span class="badge" lang="ja">${escapeHtml(m.word)} (${escapeHtml(m.kana)}) · ${escapeHtml(m.meaning)}</span>`
+              )
+              .join(" ")
           : `「${escapeHtml(fcActiveKanji)}」를 포함한 다른 등록 어휘가 없습니다.`;
       } else {
         relatedBox.hidden = true;
@@ -715,10 +723,17 @@ window.JLPTData = {
           </div>
           <p class="grammar-meaning maskable-meaning"><strong>${escapeHtml(g.meaning)}</strong></p>
           ${g.explanation ? `<p class="helper-text">${escapeHtml(g.explanation)}</p>` : ""}
-          ${g.example ? `<p class="fc-example-jp" lang="ja">${escapeHtml(g.example)}</p><p class="helper-text maskable-meaning">${escapeHtml(g.exampleMeaning || "")}</p>` : ""}
+          ${
+            g.example
+              ? `<p class="fc-example-jp" lang="ja">${escapeHtml(g.example)}</p><p class="helper-text maskable-meaning">${escapeHtml(g.exampleMeaning || "")}</p>`
+              : ""
+          }
           <div class="quick-action-row">
             ${compares
-              .map((cg) => `<button type="button" class="compare-chip" data-open-grammar-compare="${escapeHtml(idStr)}" data-compare-item="${escapeHtml(cg)}" lang="ja">유사 비교: ${escapeHtml(cg)}</button>`)
+              .map(
+                (cg) =>
+                  `<button type="button" class="compare-chip" data-open-grammar-compare="${escapeHtml(idStr)}" data-compare-item="${escapeHtml(cg)}" lang="ja">유사 비교: ${escapeHtml(cg)}</button>`
+              )
               .join("")}
             <select class="vocab-status-select" data-grammar-status-id="${escapeHtml(idStr)}">
               <option value="미학습" ${status === "미학습" ? "selected" : ""}>미학습</option>
@@ -780,7 +795,7 @@ window.JLPTData = {
     }
 
     const memoEl = document.getElementById("gfc-simple-memo");
-    if (memoEl) memoEl.value = appState.posNotes[idStr] || "";
+    if (memoEl) memoEl.value = appState.posNotes?.[idStr] || "";
 
     const frontEl = document.getElementById("gfc-front");
     const backEl = document.getElementById("gfc-back");
@@ -803,7 +818,10 @@ window.JLPTData = {
     if (compBox) {
       const comps = Array.isArray(item.compareGrammar) ? item.compareGrammar : [];
       compBox.innerHTML = comps
-        .map((cg) => `<button type="button" class="compare-chip" data-open-grammar-compare="${escapeHtml(idStr)}" data-compare-item="${escapeHtml(cg)}" lang="ja">비교: ${escapeHtml(cg)}</button>`)
+        .map(
+          (cg) =>
+            `<button type="button" class="compare-chip" data-open-grammar-compare="${escapeHtml(idStr)}" data-compare-item="${escapeHtml(cg)}" lang="ja">비교: ${escapeHtml(cg)}</button>`
+        )
         .join("");
     }
   }
@@ -826,7 +844,7 @@ window.JLPTData = {
     const idStr = String(item.id);
     appState.progress[idStr] = {
       type: "grammar",
-      ...DATA.calculateNextSrs(appState.progress[idStr], rating)
+      ...DATA.calculateNextSrs(appState.progress[idStr] || null, rating)
     };
     persistState();
     renderGrammarDashboard();
@@ -861,7 +879,7 @@ window.JLPTData = {
   function renderWrongNotes() {
     const listEl = document.getElementById("vocab-wrong-list");
     if (!listEl) return;
-    const wrongEntries = Object.entries(appState.wrongStats)
+    const wrongEntries = Object.entries(appState.wrongStats || {})
       .filter(([, s]) => s && Number(s.count) > 0)
       .sort((a, b) => Number(b[1].count) - Number(a[1].count));
 
@@ -913,9 +931,18 @@ window.JLPTData = {
 
   function formatReadingPassageHtml(rawText) {
     const escaped = escapeHtml(rawText || "");
-    const withUnderline = escaped.replace(/\[\[u\]\]([\s\S]*?)\[\[\/u\]\]/g, '<span class="reading-underline" lang="ja">$1</span>');
-    const withBlank = withUnderline.replace(/\[\[blank\]\]([\s\S]*?)\[\[\/blank\]\]/g, '<span class="reading-blank" lang="ja">$1</span>');
-    const paragraphs = withBlank.split(/\n{2,}|\n/).map((p) => p.trim()).filter(Boolean);
+    const withUnderline = escaped.replace(
+      /\[\[u\]\]([\s\S]*?)\[\[\/u\]\]/g,
+      '<span class="reading-underline" lang="ja">$1</span>'
+    );
+    const withBlank = withUnderline.replace(
+      /\[\[blank\]\]([\s\S]*?)\[\[\/blank\]\]/g,
+      '<span class="reading-blank" lang="ja">$1</span>'
+    );
+    const paragraphs = withBlank
+      .split(/\n{2,}|\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
     if (!paragraphs.length) return `<p lang="ja"></p>`;
     return paragraphs.map((p) => `<p lang="ja">${p.replace(/\n/g, "<br />")}</p>`).join("");
   }
@@ -1007,7 +1034,10 @@ window.JLPTData = {
     const relatedChipsHtml =
       Array.isArray(current.relatedVocabGrammar) && current.relatedVocabGrammar.length
         ? `<div class="reading-link-chips">${current.relatedVocabGrammar
-            .map((e) => `<div class="reading-link-chip"><strong lang="ja">${escapeHtml(e.term || "")}</strong> <span class="maskable-meaning">— ${escapeHtml(e.meaning || "")}</span></div>`)
+            .map(
+              (e) =>
+                `<div class="reading-link-chip"><strong lang="ja">${escapeHtml(e.term || "")}</strong> <span class="maskable-meaning">— ${escapeHtml(e.meaning || "")}</span></div>`
+            )
             .join("")}</div>`
         : "";
 
@@ -1040,6 +1070,31 @@ window.JLPTData = {
     renderReadingSection();
   }
 
+  function triggerResetAllData() {
+    if (!confirm("모든 학습 기록과 커스텀 단어장을 초기화할까요?")) return;
+    if (typeof DATA.resetAllData === "function") {
+      appState = DATA.resetAllData();
+    } else if (typeof DATA.resetState === "function") {
+      appState = DATA.resetState();
+    } else {
+      appState = DATA.saveState({
+        theme: appState.theme,
+        maskKana: false,
+        maskMeaning: false,
+        ttsRate: appState.ttsRate || 1.0,
+        progress: {},
+        favorites: [],
+        customDecks: [],
+        posNotes: {},
+        wrongStats: {},
+        readingProgress: {}
+      });
+    }
+    selectedVocabIds.clear();
+    refreshAllViews();
+    setText("backup-status-msg", "학습 데이터가 초기화되었습니다.");
+  }
+
   function bindEvents() {
     document.addEventListener("jlpt:state-updated", refreshAllViews);
 
@@ -1051,13 +1106,31 @@ window.JLPTData = {
       card.addEventListener("click", () => switchMainTab(card.getAttribute("data-jump-main")));
     });
 
-    document.getElementById("btn-quick-start-vocab")?.addEventListener("click", () => switchMainTab("vocab-section", { vocabSubTab: "vocab-flashcard", scope: "DUE" }));
-    document.getElementById("btn-quick-start-flashcard")?.addEventListener("click", () => switchMainTab("vocab-section", { vocabSubTab: "vocab-flashcard", scope: "ALL" }));
-    document.getElementById("btn-quick-start-grammar")?.addEventListener("click", () => switchMainTab("grammar-section", { grammarSubTab: "grammar-dashboard" }));
+    document
+      .getElementById("btn-quick-start-vocab")
+      ?.addEventListener("click", () => switchMainTab("vocab-section", { vocabSubTab: "vocab-flashcard", scope: "DUE" }));
+    document
+      .getElementById("btn-quick-start-flashcard")
+      ?.addEventListener("click", () => switchMainTab("vocab-section", { vocabSubTab: "vocab-flashcard", scope: "ALL" }));
+    document
+      .getElementById("btn-quick-start-grammar")
+      ?.addEventListener("click", () => switchMainTab("grammar-section", { grammarSubTab: "grammar-dashboard" }));
 
     document.getElementById("jump-backup-btn")?.addEventListener("click", () => {
       switchMainTab("main-dashboard");
       setTimeout(() => document.getElementById("backup-restore-section")?.scrollIntoView({ behavior: "smooth" }), 60);
+    });
+
+    document.getElementById("open-shortcuts-btn")?.addEventListener("click", () => {
+      const modal = document.getElementById("shortcuts-modal");
+      if (modal) modal.hidden = false;
+    });
+    document.getElementById("btn-close-shortcuts-modal")?.addEventListener("click", () => {
+      const modal = document.getElementById("shortcuts-modal");
+      if (modal) modal.hidden = true;
+    });
+    document.getElementById("shortcuts-modal")?.addEventListener("click", (e) => {
+      if (e.target.id === "shortcuts-modal") e.target.hidden = true;
     });
 
     document.getElementById("btn-export-json")?.addEventListener("click", () => {
@@ -1089,28 +1162,8 @@ window.JLPTData = {
       reader.readAsText(file, "utf-8");
     });
 
-    document.getElementById("btn-reset-all")?.addEventListener("click", () => {
-      if (!confirm("모든 학습 기록과 커스텀 단어장을 초기화할까요?")) return;
-      if (typeof DATA.resetState === "function") {
-        appState = DATA.resetState();
-      } else {
-        appState = DATA.saveState({
-          theme: appState.theme,
-          maskKana: false,
-          maskMeaning: false,
-          ttsRate: appState.ttsRate || 1.0,
-          progress: {},
-          favorites: [],
-          customDecks: [],
-          posNotes: {},
-          wrongStats: {},
-          readingProgress: {}
-        });
-      }
-      selectedVocabIds.clear();
-      refreshAllViews();
-      setText("backup-status-msg", "학습 데이터가 초기화되었습니다.");
-    });
+    document.getElementById("btn-reset-all-data")?.addEventListener("click", triggerResetAllData);
+    document.getElementById("btn-reset-all")?.addEventListener("click", triggerResetAllData);
 
     document.getElementById("theme-toggle-btn")?.addEventListener("click", () => {
       appState.theme = appState.theme === "dark" ? "light" : "dark";
@@ -1141,23 +1194,47 @@ window.JLPTData = {
       btn.addEventListener("click", () => switchGrammarSubTab(btn.getAttribute("data-grammar-subtab")));
     });
 
-    ["vocab-search-input", "vocab-category-filter", "vocab-status-filter", "vocab-deck-filter", "vocab-sort-select"].forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const evtName = id === "vocab-search-input" ? "input" : "change";
-      el.addEventListener(evtName, () => {
-        vocabRenderedCount = VOCAB_PAGE_SIZE;
-        renderVocabList();
+    document.querySelectorAll("#vocab-stats-grid [data-stat-filter]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-stat-filter");
+        if (key === "all") switchVocabSubTab("vocab-list", { statusFilter: "ALL", resetPage: true });
+        else if (key === "due") switchVocabSubTab("vocab-list", { statusFilter: "DUE", resetPage: true });
+        else if (key === "favorite") switchVocabSubTab("vocab-list", { statusFilter: "FAVORITE", resetPage: true });
+        else if (key === "wrong") switchVocabSubTab("vocab-wrong");
+        else switchVocabSubTab("vocab-list", { statusFilter: key, resetPage: true });
       });
     });
+
+    document.getElementById("btn-vocab-start-due")?.addEventListener("click", () => {
+      switchVocabSubTab("vocab-flashcard", { scope: "DUE" });
+    });
+    document.getElementById("btn-vocab-start-list")?.addEventListener("click", () => {
+      switchVocabSubTab("vocab-list", { resetPage: true });
+    });
+    document.getElementById("btn-vocab-start-quiz")?.addEventListener("click", () => {
+      switchVocabSubTab("vocab-quiz");
+    });
+
+    ["vocab-search-input", "vocab-category-filter", "vocab-status-filter", "vocab-deck-filter", "vocab-sort-select"].forEach(
+      (id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const evtName = id === "vocab-search-input" ? "input" : "change";
+        el.addEventListener(evtName, () => {
+          vocabRenderedCount = VOCAB_PAGE_SIZE;
+          renderVocabList();
+        });
+      }
+    );
 
     document.getElementById("btn-load-more-vocab")?.addEventListener("click", () => {
       vocabRenderedCount += VOCAB_PAGE_SIZE;
       renderVocabList();
     });
 
-    document.getElementById("btn-create-deck")?.addEventListener("click", () => {
-      const input = document.getElementById("input-new-deck-name");
+    const createDeckFn = (e) => {
+      if (e) e.preventDefault();
+      const input = document.getElementById("new-deck-name-input") || document.getElementById("input-new-deck-name");
       const name = String(input?.value || "").trim();
       if (!name) return;
       appState.customDecks = appState.customDecks || [];
@@ -1170,7 +1247,9 @@ window.JLPTData = {
       persistState();
       renderCustomDecksList();
       syncDeckSelectOptions();
-    });
+    };
+    document.getElementById("custom-deck-create-form")?.addEventListener("submit", createDeckFn);
+    document.getElementById("btn-create-deck")?.addEventListener("click", createDeckFn);
 
     document.getElementById("custom-deck-list")?.addEventListener("click", (e) => {
       const openId = e.target.closest("[data-open-deck]")?.getAttribute("data-open-deck");
@@ -1194,6 +1273,16 @@ window.JLPTData = {
       }
     });
 
+    document.getElementById("vocab-select-all")?.addEventListener("change", (e) => {
+      const visible = getFilteredAndSortedVocab().slice(0, vocabRenderedCount);
+      if (e.target.checked) {
+        visible.forEach((item) => selectedVocabIds.add(String(item.id)));
+      } else {
+        visible.forEach((item) => selectedVocabIds.delete(String(item.id)));
+      }
+      renderVocabList();
+    });
+
     document.getElementById("btn-select-all-visible")?.addEventListener("click", () => {
       getFilteredAndSortedVocab()
         .slice(0, vocabRenderedCount)
@@ -1206,7 +1295,7 @@ window.JLPTData = {
       renderVocabList();
     });
 
-    document.getElementById("btn-add-to-deck")?.addEventListener("click", () => {
+    const addSelectedToDeck = () => {
       const targetDeckId = document.getElementById("batch-target-deck-select")?.value;
       if (!targetDeckId || !selectedVocabIds.size) return;
       const deck = (appState.customDecks || []).find((d) => String(d.id) === String(targetDeckId));
@@ -1216,6 +1305,21 @@ window.JLPTData = {
       persistState();
       renderCustomDecksList();
       alert(`선택한 ${selectedVocabIds.size}개 단어를 "${deck.name}" 단어장에 추가했습니다.`);
+    };
+    document.getElementById("btn-batch-add-deck")?.addEventListener("click", addSelectedToDeck);
+    document.getElementById("btn-add-to-deck")?.addEventListener("click", addSelectedToDeck);
+
+    document.getElementById("btn-batch-mark-learned")?.addEventListener("click", () => {
+      if (!selectedVocabIds.size) return;
+      selectedVocabIds.forEach((idStr) => {
+        appState.progress[idStr] = {
+          type: "vocab",
+          ...DATA.calculateNextSrs(appState.progress[idStr] || null, "완벽함")
+        };
+      });
+      persistState();
+      renderVocabList();
+      renderVocabDashboard();
     });
 
     document.getElementById("btn-batch-set-status")?.addEventListener("click", () => {
@@ -1224,9 +1328,7 @@ window.JLPTData = {
       selectedVocabIds.forEach((idStr) => {
         appState.progress[idStr] = {
           type: "vocab",
-          ...(typeof DATA.calculateNextSrs === "function"
-            ? DATA.calculateNextSrs(appState.progress[idStr] || null, nextStatus)
-            : { status: nextStatus })
+          ...DATA.calculateNextSrs(appState.progress[idStr] || null, nextStatus)
         };
       });
       persistState();
@@ -1259,7 +1361,7 @@ window.JLPTData = {
         const val = String(checkEl.value);
         if (checkEl.checked) selectedVocabIds.add(val);
         else selectedVocabIds.delete(val);
-        updateBatchSelectionUI();
+        updateBatchSelectionUI(getFilteredAndSortedVocab().slice(0, vocabRenderedCount));
       }
     });
 
@@ -1269,9 +1371,7 @@ window.JLPTData = {
         const nextStatus = e.target.value;
         appState.progress[String(statusId)] = {
           type: "vocab",
-          ...(typeof DATA.calculateNextSrs === "function"
-            ? DATA.calculateNextSrs(appState.progress[String(statusId)] || null, nextStatus)
-            : { status: nextStatus })
+          ...DATA.calculateNextSrs(appState.progress[String(statusId)] || null, nextStatus)
         };
         persistState();
         renderVocabDashboard();
@@ -1297,12 +1397,21 @@ window.JLPTData = {
       renderFlashcard();
     });
     document.getElementById("btn-fc-flip")?.addEventListener("click", () => flipFlashcard());
-    document.getElementById("fc-front")?.addEventListener("click", () => flipFlashcard(true));
+    document.getElementById("fc-front")?.addEventListener("click", (e) => {
+      if (e.target.closest("button, input, select, a")) return;
+      flipFlashcard(true);
+    });
     document.getElementById("btn-fc-prev")?.addEventListener("click", () => moveFlashcard(-1));
     document.getElementById("btn-fc-next")?.addEventListener("click", () => moveFlashcard(1));
-    document.getElementById("btn-fc-speak")?.addEventListener("click", () => {
+    const speakCurrentVocabWord = () => {
       const cur = fcDeck[fcIndex % fcDeck.length];
       if (cur) speakJapanese(cur.word || cur.kana);
+    };
+    document.getElementById("btn-fc-speak-word")?.addEventListener("click", speakCurrentVocabWord);
+    document.getElementById("btn-fc-speak")?.addEventListener("click", speakCurrentVocabWord);
+    document.getElementById("btn-fc-speak-example")?.addEventListener("click", () => {
+      const cur = fcDeck[fcIndex % fcDeck.length];
+      if (cur) speakJapanese(cur.example || cur.word || cur.kana);
     });
     document.getElementById("btn-fc-favorite")?.addEventListener("click", () => {
       const cur = fcDeck[fcIndex % fcDeck.length];
@@ -1330,14 +1439,54 @@ window.JLPTData = {
       appState.posNotes[String(cur.id)] = e.target.value;
       appState = DATA.saveState(appState);
     });
-    document.querySelectorAll("[data-fc-rate]").forEach((btn) => {
-      btn.addEventListener("click", () => rateCurrentFlashcard(btn.getAttribute("data-fc-rate")));
+    document.querySelectorAll("[data-srs-rating], [data-fc-rate]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const rating = btn.getAttribute("data-srs-rating") || btn.getAttribute("data-fc-rate");
+        if (rating) rateCurrentFlashcard(rating);
+      });
     });
     document.getElementById("fc-kanji-chips")?.addEventListener("click", (e) => {
       const ch = e.target.closest("[data-kanji-char]")?.getAttribute("data-kanji-char");
       if (!ch) return;
       fcActiveKanji = fcActiveKanji === ch ? null : ch;
       renderFlashcard();
+    });
+
+    document.querySelectorAll("#grammar-stats-grid [data-grammar-stat]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-grammar-stat");
+        if (key === "all") switchGrammarSubTab("grammar-list", { statusFilter: "ALL" });
+        else if (key === "due") switchGrammarSubTab("grammar-list", { statusFilter: "DUE" });
+        else switchGrammarSubTab("grammar-list", { statusFilter: key });
+      });
+    });
+
+    document.getElementById("btn-grammar-start-due-fc")?.addEventListener("click", () => {
+      switchGrammarSubTab("grammar-flashcard", { scope: "DUE" });
+    });
+    document.getElementById("btn-grammar-start-all-fc")?.addEventListener("click", () => {
+      switchGrammarSubTab("grammar-flashcard", { scope: "ALL" });
+    });
+    document.getElementById("btn-grammar-start-quiz")?.addEventListener("click", () => {
+      switchGrammarSubTab("grammar-quiz");
+    });
+    document.getElementById("btn-grammar-go-list")?.addEventListener("click", () => {
+      switchGrammarSubTab("grammar-list");
+    });
+
+    document.getElementById("btn-run-grammar-quiz-10")?.addEventListener("click", () => {
+      const runner = document.getElementById("grammar-quiz-runner");
+      if (runner) runner.hidden = false;
+      if (typeof window.JLPTQuiz?.startGrammarQuiz === "function") {
+        window.JLPTQuiz.startGrammarQuiz(10, "grammar-quiz-runner");
+      }
+    });
+    document.getElementById("btn-run-grammar-quiz-all")?.addEventListener("click", () => {
+      const runner = document.getElementById("grammar-quiz-runner");
+      if (runner) runner.hidden = false;
+      if (typeof window.JLPTQuiz?.startGrammarQuiz === "function") {
+        window.JLPTQuiz.startGrammarQuiz("ALL", "grammar-quiz-runner");
+      }
     });
 
     ["grammar-search-input", "grammar-connection-filter", "grammar-status-filter"].forEach((id) => {
@@ -1361,9 +1510,7 @@ window.JLPTData = {
       if (gId) {
         appState.progress[String(gId)] = {
           type: "grammar",
-          ...(typeof DATA.calculateNextSrs === "function"
-            ? DATA.calculateNextSrs(appState.progress[String(gId)] || null, e.target.value)
-            : { status: e.target.value })
+          ...DATA.calculateNextSrs(appState.progress[String(gId)] || null, e.target.value)
         };
         persistState();
         renderGrammarDashboard();
@@ -1388,7 +1535,10 @@ window.JLPTData = {
       renderGrammarFlashcard();
     });
     document.getElementById("btn-gfc-flip")?.addEventListener("click", () => flipGrammarFlashcard());
-    document.getElementById("gfc-front")?.addEventListener("click", () => flipGrammarFlashcard(true));
+    document.getElementById("gfc-front")?.addEventListener("click", (e) => {
+      if (e.target.closest("button, input, select, a")) return;
+      flipGrammarFlashcard(true);
+    });
     document.getElementById("btn-gfc-prev")?.addEventListener("click", () => moveGrammarFlashcard(-1));
     document.getElementById("btn-gfc-next")?.addEventListener("click", () => moveGrammarFlashcard(1));
     document.getElementById("btn-gfc-speak")?.addEventListener("click", () => {
@@ -1402,8 +1552,11 @@ window.JLPTData = {
       appState.posNotes[String(cur.id)] = e.target.value;
       appState = DATA.saveState(appState);
     });
-    document.querySelectorAll("[data-gfc-rate]").forEach((btn) => {
-      btn.addEventListener("click", () => rateCurrentGrammarCard(btn.getAttribute("data-gfc-rate")));
+    document.querySelectorAll("[data-grammar-srs], [data-gfc-rate]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const rating = btn.getAttribute("data-grammar-srs") || btn.getAttribute("data-gfc-rate");
+        if (rating) rateCurrentGrammarCard(rating);
+      });
     });
     document.getElementById("gfc-compare-chips")?.addEventListener("click", (e) => {
       const cmpBtn = e.target.closest("[data-open-grammar-compare]");
@@ -1423,10 +1576,16 @@ window.JLPTData = {
       renderWrongNotes();
     });
 
-    document.getElementById("btn-clear-wrong-notes")?.addEventListener("click", () => {
+    const clearWrongFn = () => {
       appState.wrongStats = {};
       persistState();
       renderWrongNotes();
+    };
+    document.getElementById("btn-clear-wrong-vocab")?.addEventListener("click", clearWrongFn);
+    document.getElementById("btn-clear-wrong-notes")?.addEventListener("click", clearWrongFn);
+
+    document.getElementById("btn-retry-wrong-vocab")?.addEventListener("click", () => {
+      switchVocabSubTab("vocab-quiz");
     });
 
     document.querySelectorAll("#panel-reading-section [data-reading-category]").forEach((btn) => {
@@ -1502,6 +1661,24 @@ window.JLPTData = {
       const tag = document.activeElement?.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
 
+      if (e.key === "?") {
+        const modal = document.getElementById("shortcuts-modal");
+        if (modal) modal.hidden = !modal.hidden;
+        return;
+      }
+
+      if (e.key === "k" || e.key === "K") {
+        appState.maskKana = !appState.maskKana;
+        persistState();
+        return;
+      }
+
+      if (e.key === "m" || e.key === "M") {
+        appState.maskMeaning = !appState.maskMeaning;
+        persistState();
+        return;
+      }
+
       if (activeMainTab === "vocab-section" && activeVocabSubTab === "vocab-flashcard") {
         if (e.code === "Space" || e.key === "Enter") {
           e.preventDefault();
@@ -1510,6 +1687,10 @@ window.JLPTData = {
           moveFlashcard(-1);
         } else if (e.key === "ArrowRight") {
           moveFlashcard(1);
+        } else if (e.key === "r" || e.key === "R") {
+          speakCurrentVocabWord();
+        } else if (e.key === "0") {
+          rateCurrentFlashcard("미학습");
         } else if (e.key === "1") {
           rateCurrentFlashcard("모름");
         } else if (e.key === "2") {
@@ -1525,6 +1706,17 @@ window.JLPTData = {
           moveGrammarFlashcard(-1);
         } else if (e.key === "ArrowRight") {
           moveGrammarFlashcard(1);
+        } else if (e.key === "r" || e.key === "R") {
+          const cur = gfcDeck[gfcIndex % gfcDeck.length];
+          if (cur) speakJapanese(cur.example || cur.word || cur.kana);
+        } else if (e.key === "0") {
+          rateCurrentGrammarCard("미학습");
+        } else if (e.key === "1") {
+          rateCurrentGrammarCard("모름");
+        } else if (e.key === "2") {
+          rateCurrentGrammarCard("애매함");
+        } else if (e.key === "3") {
+          rateCurrentGrammarCard("완벽함");
         }
       }
     });
