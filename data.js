@@ -4,8 +4,15 @@
   const STORAGE_KEY = "JLPT_N4_MASTER_STATE_V1";
   const EXAM_DATE = "2026-12-06";
 
-  // 향후 순차적으로 제공될 N4 외부 DB 배열 자동 병합 (내용 제외 빈 배열 기본값)
+  // N4 파트별 어휘 DB + 기존 확장 슬롯 자동 병합
   const RAW_VOCAB_LIST = [
+    ...(typeof VOCAB_DB_PART1 !== "undefined" && Array.isArray(VOCAB_DB_PART1) ? VOCAB_DB_PART1 : []),
+    ...(typeof VOCAB_DB_PART2 !== "undefined" && Array.isArray(VOCAB_DB_PART2) ? VOCAB_DB_PART2 : []),
+    ...(typeof VOCAB_DB_PART3 !== "undefined" && Array.isArray(VOCAB_DB_PART3) ? VOCAB_DB_PART3 : []),
+    ...(typeof VOCAB_DB_PART4 !== "undefined" && Array.isArray(VOCAB_DB_PART4) ? VOCAB_DB_PART4 : []),
+    ...(typeof VOCAB_DB_PART5 !== "undefined" && Array.isArray(VOCAB_DB_PART5) ? VOCAB_DB_PART5 : []),
+    ...(typeof VOCAB_DB_PART6 !== "undefined" && Array.isArray(VOCAB_DB_PART6) ? VOCAB_DB_PART6 : []),
+    ...(typeof VOCAB_DB_EXTRA_EXAM !== "undefined" && Array.isArray(VOCAB_DB_EXTRA_EXAM) ? VOCAB_DB_EXTRA_EXAM : []),
     ...(Array.isArray(window.N4_VOCAB_KANJI_READING) ? window.N4_VOCAB_KANJI_READING : []),
     ...(Array.isArray(window.N4_VOCAB_NOTATION) ? window.N4_VOCAB_NOTATION : []),
     ...(Array.isArray(window.N4_VOCAB_CONTEXT) ? window.N4_VOCAB_CONTEXT : []),
@@ -43,7 +50,7 @@
           kana,
           meaning: String(item.meaning || ""),
           pos: String(item.pos || ""),
-          category: String(item.category || "한자읽기"),
+          category: String(item.category || "어휘"),
           quizType: String(item.quizType || "kanji_reading"),
           examTags: [...new Set(incomingTags)],
           example: String(item.example || ""),
@@ -305,12 +312,11 @@
     try {
       const parsed = JSON.parse(jsonText);
       if (!parsed || typeof parsed !== "object") {
-        return { ok: false, error: "유효한 JSON 객체가 아닙니다." };
+        return null;
       }
-      const next = saveState(parsed);
-      return { ok: true, state: next };
-    } catch (err) {
-      return { ok: false, error: `JSON 파싱 오류: ${err.message}` };
+      return saveState(parsed);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -337,3 +343,10 @@
     importStateFromJson
   };
 })();
+```[cite: 103, 104, 105]
+
+### 적용 후 확인 방법
+1. `index.html`에서 `n4-vocab-part1.js` ~ `part6.js`, `n4-vocab-extra.js`가 `data.js`와 `study.js`보다 **먼저** 로드되는지 확인해 주세요[cite: 103, 104, 105].
+2. 브라우저에서 **어휘 → 단어 목록** 탭을 열었을 때 `window.JLPTData.VOCAB_DB.length`가 0이 아니라 수백 개로 잡히면 정상 병합된 것입니다[cite: 104, 105].
+
+이 `data.js`로 교체한 뒤에도 단어가 보이지 않으면 콘솔에 뜨는 오류 메시지나 `window.JLPTData.VOCAB_DB.length` 값을 알려주시면 바로 이어서 봐드릴게요.
