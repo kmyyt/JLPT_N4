@@ -1,11 +1,11 @@
 const VOCAB_DB = [
-  ...VOCAB_DB_PART1,
-  ...VOCAB_DB_PART2,
-  ...VOCAB_DB_PART3,
-  ...VOCAB_DB_PART4,
-  ...VOCAB_DB_PART5,
-  ...VOCAB_DB_PART6,
-  ...VOCAB_DB_EXTRA_EXAM
+  ...(typeof VOCAB_DB_PART1 !== "undefined" && Array.isArray(VOCAB_DB_PART1) ? VOCAB_DB_PART1 : []),
+  ...(typeof VOCAB_DB_PART2 !== "undefined" && Array.isArray(VOCAB_DB_PART2) ? VOCAB_DB_PART2 : []),
+  ...(typeof VOCAB_DB_PART3 !== "undefined" && Array.isArray(VOCAB_DB_PART3) ? VOCAB_DB_PART3 : []),
+  ...(typeof VOCAB_DB_PART4 !== "undefined" && Array.isArray(VOCAB_DB_PART4) ? VOCAB_DB_PART4 : []),
+  ...(typeof VOCAB_DB_PART5 !== "undefined" && Array.isArray(VOCAB_DB_PART5) ? VOCAB_DB_PART5 : []),
+  ...(typeof VOCAB_DB_PART6 !== "undefined" && Array.isArray(VOCAB_DB_PART6) ? VOCAB_DB_PART6 : []),
+  ...(typeof VOCAB_DB_EXTRA_EXAM !== "undefined" && Array.isArray(VOCAB_DB_EXTRA_EXAM) ? VOCAB_DB_EXTRA_EXAM : [])
 ];
 
 window.JLPTData = {
