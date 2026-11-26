@@ -343,10 +343,3 @@
     importStateFromJson
   };
 })();
-```[cite: 103, 104, 105]
-
-### 적용 후 확인 방법
-1. `index.html`에서 `n4-vocab-part1.js` ~ `part6.js`, `n4-vocab-extra.js`가 `data.js`와 `study.js`보다 **먼저** 로드되는지 확인해 주세요[cite: 103, 104, 105].
-2. 브라우저에서 **어휘 → 단어 목록** 탭을 열었을 때 `window.JLPTData.VOCAB_DB.length`가 0이 아니라 수백 개로 잡히면 정상 병합된 것입니다[cite: 104, 105].
-
-이 `data.js`로 교체한 뒤에도 단어가 보이지 않으면 콘솔에 뜨는 오류 메시지나 `window.JLPTData.VOCAB_DB.length` 값을 알려주시면 바로 이어서 봐드릴게요.
